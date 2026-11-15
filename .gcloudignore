@@ -1,0 +1,6 @@
+# Without this file gcloud falls back to .gitignore, which would leave out
+# .secret/.env and produce a build that cannot sign anyone in.
+.git
+.gitignore
+node_modules
+dist
