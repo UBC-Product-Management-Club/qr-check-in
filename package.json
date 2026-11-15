@@ -1,0 +1,42 @@
+{
+    "name": "pmc-qr-check-in",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "dev:phone": "PHONE=1 vite --host",
+        "build": "tsc && vite build",
+        "preview": "vite preview",
+        "format": "prettier --write .",
+        "lint": "eslint .",
+        "tcheck": "tsc --noEmit",
+        "check": "npm run lint && npm run tcheck"
+    },
+    "dependencies": {
+        "@supabase/supabase-js": "^2.119.0",
+        "@tailwindcss/vite": "^4.3.5",
+        "qr-scanner": "^1.4.2",
+        "qrcode.react": "^4.2.0",
+        "react": "^19.3.1",
+        "react-dom": "^19.3.1",
+        "react-icons": "^5.7.0",
+        "react-router-dom": "^7.18.5",
+        "tailwindcss": "^4.3.5"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.39.5",
+        "@types/node": "^26.6.6",
+        "@types/react": "^19.3.0",
+        "@types/react-dom": "^19.3.0",
+        "@vitejs/plugin-basic-ssl": "^2.3.0",
+        "@vitejs/plugin-react": "^4.7.0",
+        "eslint": "^9.39.5",
+        "eslint-plugin-react-hooks": "^5.2.0",
+        "globals": "^17.14.0",
+        "prettier": "^3.10.1",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.72.2",
+        "vite": "^6.4.6"
+    }
+}

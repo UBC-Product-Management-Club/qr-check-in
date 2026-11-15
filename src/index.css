@@ -1,0 +1,84 @@
+@import 'tailwindcss';
+
+/* PMC brand tokens: same names and values as pmc-portal-fe/src/index.css. */
+@theme {
+    --font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+
+    --color-pmc-light-blue: #8d9beb;
+    --color-pmc-purple: #af71aa;
+    --color-pmc-red: #e33148;
+    --color-pmc-black: #2e2e2e;
+    --color-pmc-dark-purple: #445088;
+    --color-pmc-light-grey: #dedfe2;
+    --color-pmc-blue: #333d6c;
+    --color-pmc-dark-blue: #1d233f;
+    --color-pmc-midnight-grey: #dce1ff;
+    --color-pmc-midnight-blue: #262d47;
+
+    /* Scheme-aware colours: the values switch with data-theme, see below. */
+    --color-surface: var(--surface);
+    --color-card: var(--card);
+    --color-line: var(--line);
+    --color-ink: var(--ink);
+    --color-muted: var(--muted);
+    --color-accent: var(--accent);
+    --color-success: var(--success);
+}
+
+:root,
+:root[data-theme='dark'] {
+    --pmc-gradient: linear-gradient(135deg, #8d9beb 0%, #af71aa 50%, #e33148 100%);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+
+    /* Dark scheme (default): navy background, like the "dark mode" logo tile. */
+    color-scheme: dark;
+    --surface: #1d233f;
+    --card: #262d47;
+    --line: #333d6c;
+    --ink: #ffffff;
+    --muted: #dce1ff;
+    --accent: #8d9beb;
+    --success: #3fd08f;
+}
+
+/* Light scheme: white background, like the brand guide pages. */
+:root[data-theme='light'] {
+    color-scheme: light;
+    --surface: #ffffff;
+    --card: #f5f6fc;
+    --line: #dedfe2;
+    --ink: #2e2e2e;
+    --muted: #445088;
+    --accent: #445088;
+    --success: #14875a;
+}
+
+html,
+body {
+    margin: 0;
+    background-color: var(--surface);
+    color: var(--ink);
+    font-family: var(--font-sans);
+}
+
+/* The white logo for dark, the gradient logo for light. */
+:root[data-theme='light'] .logo-on-dark,
+:root:not([data-theme='light']) .logo-on-light {
+    display: none;
+}
+
+/* Brand rule: gradient for titles, white for subtext. */
+.text-gradient {
+    background: linear-gradient(90deg, #8d9beb 0%, #af71aa 55%, #e33148 110%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.bg-pmc-gradient {
+    background: var(--pmc-gradient);
+    color: #ffffff;
+}
