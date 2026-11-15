@@ -13,8 +13,8 @@ const FAILURE_COPY: Record<CheckInFailureReason, { title: string; detail: string
         detail: "This person isn't registered for this event.",
     },
     NOT_ACCEPTED: {
-        title: 'Not accepted',
-        detail: 'This person applied but has not been accepted for this event.',
+        title: 'No seat',
+        detail: "This person applied but isn't registered: not accepted, or accepted and not paid yet.",
     },
     INVALID_CODE: {
         title: 'Code not recognized',

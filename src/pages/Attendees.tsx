@@ -70,7 +70,7 @@ export default function Attendees() {
                 )}
                 {list && visible.length === 0 && (
                     <p className="py-6 text-center text-muted">
-                        {query ? `No one matches "${query}".` : 'No accepted attendees yet.'}
+                        {query ? `No one matches "${query}".` : 'No registered attendees yet.'}
                     </p>
                 )}
                 {visible.length > 0 && (

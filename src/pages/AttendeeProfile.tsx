@@ -10,7 +10,7 @@ import { fullName } from '../types';
 const FAILURE_MESSAGE: Record<CheckInFailureReason, string> = {
     ALREADY_CHECKED_IN: 'Someone already checked this person in.',
     NOT_REGISTERED: "This person isn't registered for this event.",
-    NOT_ACCEPTED: 'This person has not been accepted for this event.',
+    NOT_ACCEPTED: "This person isn't registered for this event: not accepted, or not paid yet.",
     INVALID_CODE: "This person couldn't be found.",
     NO_ACTIVE_EVENT: 'No event is active right now.',
     ERROR: "The check-in didn't go through. Check your connection and try again.",
