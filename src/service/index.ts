@@ -1,9 +1,12 @@
 import type { CheckInService } from './CheckInService';
+import { supabase } from '../config/supabase';
 import { MockCheckInService } from './MockCheckInService';
+import { SupabaseCheckInService } from './SupabaseCheckInService';
 
-// BACKEND HANDOFF: write a class that implements CheckInService against the real
-// backend (Supabase directly, or the pmc-portal-be API) and construct it here.
-// Nothing else in the app needs to change. See README.md, "Backend handoff".
-export const checkInService: CheckInService = new MockCheckInService();
+// With Supabase env values set, the app talks to the real backend. Without them
+// (local dev with sign-in skipped) it runs on mock data.
+export const checkInService: CheckInService = supabase
+    ? new SupabaseCheckInService(supabase)
+    : new MockCheckInService();
 
 export type { CheckInService };

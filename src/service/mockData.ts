@@ -15,7 +15,7 @@ const person = (
     firstName: string,
     lastName: string,
     extra: Partial<Attendee> = {},
-    status: AttendeeStatus = 'ACCEPTED'
+    status: AttendeeStatus = 'REGISTERED'
 ): Attendee => ({
     attendeeId: `mock-attendee-${n}`,
     userId: `google-oauth2|mock-${n}`,
@@ -63,6 +63,7 @@ export const MOCK_ATTENDEES: Attendee[] = [
         faculty: 'Arts',
         major: 'Cognitive Systems',
     }),
-    // Applied but not accepted: hidden from the list, and scanning them fails.
+    // No seat yet (applied; accepted but not paid): hidden from the list, and scanning them fails.
     person(13, 'Elliot', 'Varga', {}, 'APPLIED'),
+    person(14, 'Priya', 'Okafor', {}, 'ACCEPTED'),
 ];

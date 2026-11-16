@@ -1,4 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+
+/** How long after opening the confirm button ignores presses. */
+const ARM_DELAY_MS = 500;
 
 type Props = {
     open: boolean;
@@ -19,6 +22,14 @@ export default function ConfirmDialog({
     onConfirm,
     onCancel,
 }: Props) {
+    // The dialog opens under the pointer, so the second half of a double-click (or a
+    // second tap) on the button that opened it would land on Confirm. Ignore presses
+    // until the dialog has been on screen long enough to be read as a new decision.
+    const openedAt = useRef(0);
+    useEffect(() => {
+        if (open) openedAt.current = Date.now();
+    }, [open]);
+
     useEffect(() => {
         if (!open) return;
         const onKeyDown = (event: KeyboardEvent) => {
@@ -51,15 +62,15 @@ export default function ConfirmDialog({
                         type="button"
                         onClick={onCancel}
                         disabled={busy}
+                        autoFocus
                         className="flex-1 rounded-xl border border-pmc-dark-purple py-3 font-semibold disabled:opacity-50"
                     >
                         Cancel
                     </button>
                     <button
                         type="button"
-                        onClick={onConfirm}
+                        onClick={() => Date.now() - openedAt.current >= ARM_DELAY_MS && onConfirm()}
                         disabled={busy}
-                        autoFocus
                         className="bg-pmc-gradient flex-1 rounded-xl py-3 font-semibold disabled:opacity-50"
                     >
                         {busy ? 'Checking in…' : confirmLabel}

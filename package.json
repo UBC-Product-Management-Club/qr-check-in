@@ -11,7 +11,8 @@
         "format": "prettier --write .",
         "lint": "eslint .",
         "tcheck": "tsc --noEmit",
-        "check": "npm run lint && npm run tcheck"
+        "check": "npm run lint && npm run tcheck",
+        "test:sql": "node supabase/tests/qr_check_in.test.js"
     },
     "dependencies": {
         "@supabase/supabase-js": "^2.119.0",
@@ -25,6 +26,7 @@
         "tailwindcss": "^4.3.5"
     },
     "devDependencies": {
+        "@electric-sql/pglite": "0.2.17",
         "@eslint/js": "^9.39.5",
         "@types/node": "^26.6.6",
         "@types/react": "^19.3.0",

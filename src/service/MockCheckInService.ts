@@ -1,3 +1,4 @@
+import { SEAT_STATUS } from '../types';
 import type { ActiveEvent, Attendee, CheckInResult } from '../types';
 import type { CheckInService } from './CheckInService';
 import { MOCK_ATTENDEES, MOCK_EVENT, MOCK_UNREGISTERED_USER_ID } from './mockData';
@@ -20,7 +21,7 @@ export class MockCheckInService implements CheckInService {
     async getAttendees(eventId: string): Promise<Attendee[]> {
         await delay();
         return this.attendees
-            .filter((attendee) => attendee.eventId === eventId && attendee.status === 'ACCEPTED')
+            .filter((attendee) => attendee.eventId === eventId && attendee.status === SEAT_STATUS)
             .map((attendee) => ({ ...attendee }));
     }
 
@@ -53,7 +54,7 @@ export class MockCheckInService implements CheckInService {
     }
 
     private checkIn(attendee: Attendee): CheckInResult {
-        if (attendee.status !== 'ACCEPTED') {
+        if (attendee.status !== SEAT_STATUS) {
             return { ok: false, reason: 'NOT_ACCEPTED', attendee: { ...attendee } };
         }
         if (attendee.checkedIn) {

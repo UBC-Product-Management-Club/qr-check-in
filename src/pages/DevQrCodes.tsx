@@ -1,6 +1,6 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { MOCK_ATTENDEES, MOCK_UNREGISTERED_USER_ID } from '../service/mockData';
-import { fullName } from '../types';
+import { fullName, SEAT_STATUS } from '../types';
 
 /**
  * Dev-only page (/dev/qr): QR codes for the mock attendees, to test the scanner.
@@ -12,8 +12,8 @@ export default function DevQrCodes() {
             value: attendee.userId,
             label: fullName(attendee),
             expect:
-                attendee.status !== 'ACCEPTED'
-                    ? 'Fails: not accepted'
+                attendee.status !== SEAT_STATUS
+                    ? 'Fails: no seat'
                     : attendee.checkedIn
                       ? 'Fails: already checked in'
                       : 'Succeeds, then "already checked in"',

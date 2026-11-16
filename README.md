@@ -2,7 +2,7 @@
 
 Organizer-only web app for checking attendees into the active PMC event, by scanning their member QR code or manually from the attendee list.
 
-The frontend is complete and runs on mock data. The backend work left is listed under [Backend handoff](#backend-handoff).
+With Supabase env values set, the app runs on real data through the database functions described under [Backend](#backend). Without them it runs on mock data with sign-in skipped.
 
 ## Run it
 
@@ -19,9 +19,9 @@ To test the scanner on a phone (phone browsers only allow the camera over HTTPS)
 npm run dev:phone    # prints an https://192.168.x.x:5173 address
 ```
 
-Open that address on a phone on the same Wi-Fi and accept the self-signed certificate warning. Then open `/dev/qr` on a laptop: it shows a QR code for every mock attendee, labelled with the result each one should give.
+Open that address on a phone on the same Wi-Fi and accept the self-signed certificate warning. Then open `/dev/qr` on a laptop: it shows a QR code for every mock attendee, labelled with the result each one should give. Those codes only match the mock data; against a real database, see [Testing against real data](#testing-against-real-data).
 
-Other scripts: `npm run check` (lint and type-check), `npm run build`, `npm run format`.
+Other scripts: `npm run check` (lint and type-check), `npm run test:sql` (the migration, in an in-process Postgres), `npm run build`, `npm run format`.
 
 ## Stack
 
@@ -39,55 +39,57 @@ Same as `pmc-portal-fe`: Vite, React 19, TypeScript, Tailwind v4, react-router-d
 | `/attendees/:attendeeId` | `src/pages/AttendeeProfile.tsx` | Profile and manual check-in with confirmation   |
 | `/dev/qr`                | `src/pages/DevQrCodes.tsx`      | Test QR codes, dev mode only                    |
 
-## Backend handoff
+## Backend
 
-### 1. Implement `CheckInService`
+The app calls Supabase directly. There is no API server in between and nothing to deploy in `pmc-portal-be`.
 
-Every backend call the UI makes goes through one interface, `src/service/CheckInService.ts`. Write a class that implements it and construct it in `src/service/index.ts` in place of `MockCheckInService`. No page or component needs to change.
+`src/service/index.ts` picks the service: `SupabaseCheckInService` when the Supabase env values are set, `MockCheckInService` otherwise. Both implement `CheckInService`, the only interface the pages use.
 
-| Method                        | Returns               | Notes                                               |
-| ----------------------------- | --------------------- | --------------------------------------------------- |
-| `getActiveEvent()`            | `ActiveEvent \| null` | The event flagged active, or null                   |
-| `getAttendees(eventId)`       | `Attendee[]`          | Accepted attendees for the event, checked in or not |
-| `getAttendee(attendeeId)`     | `Attendee \| null`    | One attendee for the profile page                   |
-| `checkInByQr(qrValue)`        | `CheckInResult`       | `qrValue` is the raw scanned text                   |
-| `checkInManually(attendeeId)` | `CheckInResult`       | Same rules as the QR path                           |
+### Setup, once per Supabase project
 
-Types are in `src/types/index.ts`. `Attendee` is an `Attendee` row joined with its `User` row, in camelCase.
+1. Run `supabase/migrations/20261115000000_qr_check_in.sql` in the Supabase SQL Editor, staging first, then production. It is safe to re-run.
+2. Turn the event on:
 
-Check-in methods return expected failures instead of throwing: `{ ok: false, reason }`, where `reason` is one of `ALREADY_CHECKED_IN`, `NOT_REGISTERED`, `NOT_ACCEPTED`, `INVALID_CODE`, `NO_ACTIVE_EVENT`, `ERROR`. Include `attendee` in a failure when the person is known, so the result screen can show their name. `MockCheckInService.ts` is a working reference for the rules.
+    ```sql
+    update "Event" set is_checkin_active = true where event_id = '<event id>';
+    ```
 
-### 2. Schema changes needed
+    Only one event can be on at a time; the database refuses a second. Turn the old one off first (`set is_checkin_active = false`).
 
-The current schema (`pmc-portal-be/src/schema/v2/database.types.ts`) is missing two things:
+The migration follows the conventions of `pmc-portal-be/supabase/migrations` and should be copied there so it sits with the others, followed by `scripts/gen_types.sh`.
 
-- **Active event flag.** `Event` has no such column. For example, `is_checkin_active boolean default false`, or a row in `Portal_Settings` holding the active `event_id`.
-- **Per-event check-in.** `Attendee` is already one row per user per event, so add `checked_in boolean default false` and `checked_in_at timestamptz` there. Keeping it off `User` is what stops a check-in carrying over to the next event.
+### What the migration adds
 
-### 3. QR code value
+An active-event flag on `Event`, check-in columns on `Attendee`, and the five `checkin_*` functions the app calls. The header of the migration file lists each one.
 
-Members sign in to the portal with Auth0, not Supabase auth, so there is no Supabase auth id for them. The QR code should encode `User.user_id` (the Auth0 id, for example `google-oauth2|1234`), which is what `Attendee.user_id` references. The scanner passes the scanned text to `checkInByQr` untouched.
+`Attendee` is one row per user per event, so a check-in belongs to that event only and never carries over to the next.
 
-Generating and showing the member's QR code belongs in `pmc-portal-fe`. This repo only has the dev test page.
+### Who can be checked in
 
-### 4. Which statuses can check in
+Only attendees with status `REGISTERED`, the same seat rule the rest of the portal uses. On a reviewed event `ACCEPTED` means accepted but not paid yet, so those people are not in the list and scanning them fails with `NOT_ACCEPTED` ("No seat" on screen). To change the rule, edit the two `'REGISTERED'` checks in the migration and `SEAT_STATUS` in `src/types/index.ts`.
 
-`ATTENDEE_STATUS` is `FAILED | PROCESSING | APPLIED | REGISTERED | ACCEPTED`. The mock treats only `ACCEPTED` as allowed in the list and at check-in. Change that if `REGISTERED` should count too.
+### Who can call the functions
 
-### 5. Authenticating backend calls
+A signed-in Supabase account whose email ends with `@ubcpmc.com`. Each function checks the caller's token itself and runs with its owner's rights, so the app needs no table grants or row-level security policies. Signed-out callers cannot run them at all.
 
-The organizer's Supabase session is the credential. `src/config/supabase.ts` exports the client (null when the env values are missing):
+### QR code value
 
-- Calling Supabase directly: use that client. Requests carry the organizer's session automatically, so row-level security can key on it.
-- Calling `pmc-portal-be`: get the token with `(await supabase.auth.getSession()).data.session?.access_token` and send it as `Authorization: Bearer <token>`, the same way `admin-portal` does.
+The code encodes `User.user_id` (the Auth0 id, for example `google-oauth2|1234`), which is what `Attendee.user_id` references. Members sign in to the portal with Auth0, not Supabase auth, so there is no Supabase auth id for them. It is the same code for every event; whether it works depends on the member having a seat at the active event.
 
-### 6. Testing against real data
+Generating and showing the member's QR code belongs in `pmc-portal-fe` and is not built yet. This repo only has the dev test page.
 
-`/dev/qr` only shows codes for the mock attendees. Once the real service is in, test with a QR code that encodes a real `User.user_id` (any QR generator works until the portal shows member codes). The case to confirm before the event: a check-in for the active event must not show up as checked in for any other event.
+### Testing against real data
 
-### 7. Not built
+Make a QR code that encodes a real `User.user_id` (any QR generator works until the portal shows member codes) and scan it. The case to confirm before the event: a check-in for the active event must not show up as checked in for any other event. `npm run test:sql` covers that and the other rules against an in-process Postgres.
 
-- Undoing a check-in. A mistaken one has to be reset in Supabase.
+### Not built
+
+- Undoing a check-in from the app. Reset a mistaken one in Supabase:
+
+    ```sql
+    update "Attendee" set checked_in_at = null, checked_in_by = null where attendee_id = '<attendee id>';
+    ```
+
 - Live updates. The attendee list and count load when the page opens and after each manual check-in on that device; another organizer's check-ins appear on the next page load.
 
 ## Sign-in
@@ -103,7 +105,7 @@ Already set up for the PMC Supabase project (`dthvbanipvldaiabgvuc`):
 
 To run with sign-in locally, copy `.env.example` to `.secret/.env` and fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLIC_KEY` (same values and names as `admin-portal/.env`). `.secret` is gitignored.
 
-**The email check in this app is a UI gate only.** The data itself has to be protected on the backend: the row-level security policies (or API middleware) for attendee data and check-in writes must only allow PMC organizers. Otherwise any account that can sign in to Supabase can call it directly.
+The email check in this app is a UI gate only. The data is protected by the database functions, which make the same check on the caller's token (see [Who can call the functions](#who-can-call-the-functions)).
 
 ### Why there is no emergency allowlist
 
@@ -111,11 +113,34 @@ An allowlist for non-PMC emails was built and then removed. `restrict_admin_sign
 
 ## Deploying
 
-The app is not deployed yet. It is a static site: `npm run build` writes it to `dist/`.
+The app is not deployed yet. It is a static site served from a container on Cloud Run, set up the same way as `pmc-portal-fe`: `.github/workflows/deploy.yaml` builds the `Dockerfile` with Cloud Build and deploys it.
 
-1. **Set the env values at build time.** `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLIC_KEY` are baked into the build, so they must be set where the build runs. A production build without them shows a sign-in screen that cannot sign anyone in.
-2. **Serve over HTTPS.** Phone browsers block the camera on plain HTTP.
-3. **Send every path to `index.html`.** Routing is client-side, so a reload on `/attendees` must return the app, not a 404.
-4. **Register the deployed address in two places, or sign-in fails there:**
+- A push to `main` deploys **staging**.
+- **Production** is deployed by hand: Actions → Deploy to Cloud Run → Run workflow.
+
+### One-time setup
+
+1. **Create two GitHub environments** on this repo, `staging` and `production`, each with these secrets:
+
+    | Secret                | Value                                                                   |
+    | --------------------- | ----------------------------------------------------------------------- |
+    | `PROJECT_ID`          | The Google Cloud project, same as `pmc-portal-fe`                       |
+    | `GCLOUD_AUTH`         | The deploy service account key, same as `pmc-portal-fe`                 |
+    | `APP_NAME`            | The Cloud Run service name, different for each environment              |
+    | `SUPABASE_URL`        | That environment's Supabase project URL                                 |
+    | `SUPABASE_PUBLIC_KEY` | That environment's Supabase publishable key (as in `admin-portal/.env`) |
+
+2. **Run the migration** on that environment's Supabase project and turn the event on (see [Setup](#setup-once-per-supabase-project)).
+3. **Deploy once**, then copy the service's address from the workflow log or the Cloud Run console.
+4. **Register that address in two places, or sign-in fails there:**
     - Supabase → Authentication → URL Configuration → Redirect URLs.
     - Google Cloud → `ubc-pmc-portal` → APIs & Services → Credentials → "PMC Check-in" → Authorized JavaScript origins.
+
+Google sign-in has only been set up on the Supabase project `dthvbanipvldaiabgvuc`. The other environment's project also needs the Google provider enabled (Authentication → Providers) with the same OAuth client, and that project's callback address added to the client's authorized redirect URIs.
+
+### Things that have to stay true
+
+- **The Supabase values are baked in at build time.** The workflow writes them to `.secret/.env` before the build and stops if either is missing. Setting them on the running container does nothing.
+- **`.gcloudignore` must not list `.secret`.** Without that file gcloud falls back to `.gitignore` and leaves the env file out of the build.
+- **HTTPS.** Phone browsers block the camera on plain HTTP. Cloud Run addresses are HTTPS.
+- **Every path returns `index.html`.** Routing is client-side, so a reload on `/attendees` must return the app. `serve -s` in the `Dockerfile` does this.

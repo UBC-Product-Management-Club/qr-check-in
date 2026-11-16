@@ -1,0 +1,30 @@
+name: Checks
+
+on:
+    pull_request:
+
+jobs:
+    checks:
+        name: Lint, type-check, test and build
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Lint and type-check
+              run: npm run check
+
+            - name: Test the migration
+              run: npm run test:sql
+
+            - name: Build
+              run: npm run build

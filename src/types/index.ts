@@ -1,5 +1,12 @@
 /** Mirrors the ATTENDEE_STATUS enum in Supabase. */
-export type AttendeeStatus = 'FAILED' | 'PROCESSING' | 'APPLIED' | 'REGISTERED' | 'ACCEPTED';
+export type AttendeeStatus =
+    'FAILED' | 'PROCESSING' | 'APPLIED' | 'REGISTERED' | 'ACCEPTED' | 'REJECTED';
+
+/**
+ * The one status that has a seat and can be checked in. ACCEPTED is not enough:
+ * on a reviewed event it means accepted but not paid yet.
+ */
+export const SEAT_STATUS: AttendeeStatus = 'REGISTERED';
 
 /** The one event the app is currently checking people into. */
 export type ActiveEvent = {
@@ -36,7 +43,7 @@ export type CheckInFailureReason =
     | 'ALREADY_CHECKED_IN'
     /** The user exists but has no Attendee row for the active event. */
     | 'NOT_REGISTERED'
-    /** Has an Attendee row for the active event, but the status is not accepted. */
+    /** Has an Attendee row for the active event, but no seat (status is not REGISTERED). */
     | 'NOT_ACCEPTED'
     /** The QR value does not match any user. */
     | 'INVALID_CODE'

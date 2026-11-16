@@ -1,0 +1,76 @@
+name: Deploy to Cloud Run
+
+# A push to main deploys staging. Production is deployed by hand:
+# Actions -> Deploy to Cloud Run -> Run workflow.
+on:
+    push:
+        branches:
+            - main
+    workflow_dispatch:
+
+env:
+    PROJECT_ID: ${{ secrets.PROJECT_ID }}
+    APP_NAME: ${{ secrets.APP_NAME }}
+    REGION: us-west1
+
+jobs:
+    deploy:
+        name: Deploy
+        runs-on: ubuntu-latest
+        # Each environment holds its own secrets: PROJECT_ID, APP_NAME, GCLOUD_AUTH,
+        # SUPABASE_URL and SUPABASE_PUBLIC_KEY
+        environment: ${{ github.event_name == 'workflow_dispatch' && 'production' || 'staging' }}
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Create env file
+              env:
+                  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+                  SUPABASE_PUBLIC_KEY: ${{ secrets.SUPABASE_PUBLIC_KEY }}
+              run: |
+                  # A build without these shows a sign-in screen that cannot sign anyone in
+                  if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLIC_KEY" ]; then
+                      echo "SUPABASE_URL and SUPABASE_PUBLIC_KEY must be set as secrets on this environment"
+                      exit 1
+                  fi
+                  mkdir .secret
+                  echo "VITE_SUPABASE_URL=$SUPABASE_URL" >> .secret/.env
+                  echo "VITE_SUPABASE_PUBLIC_KEY=$SUPABASE_PUBLIC_KEY" >> .secret/.env
+
+            - name: Log into Google Cloud
+              uses: google-github-actions/auth@v2
+              with:
+                  credentials_json: '${{ secrets.GCLOUD_AUTH }}'
+
+            - name: Set up Cloud SDK
+              uses: google-github-actions/setup-gcloud@v2
+
+            - name: Run Cloud Build
+              run: |
+                  # Same as pmc-portal-fe: start the build in the background and check on it every
+                  # 15 seconds. gcloud's own wait checks once a second, which trips the project's
+                  # 60-a-minute Cloud Build quota
+                  BUILD_ID=$(gcloud builds submit --project "$PROJECT_ID" --tag "gcr.io/$PROJECT_ID/$APP_NAME" --async --format='value(id)')
+                  echo "Cloud Build $BUILD_ID"
+                  for attempt in $(seq 1 120); do
+                      sleep 15
+                      # A failed check (such as a rate limit) just waits for the next one
+                      STATUS=$(gcloud builds describe "$BUILD_ID" --project "$PROJECT_ID" --format='value(status)') || continue
+                      echo "$STATUS"
+                      case "$STATUS" in
+                          SUCCESS) exit 0 ;;
+                          QUEUED | PENDING | WORKING) ;;
+                          *)
+                              gcloud builds log "$BUILD_ID" --project "$PROJECT_ID" | tail -n 50 || true
+                              exit 1
+                              ;;
+                      esac
+                  done
+                  echo "Cloud Build $BUILD_ID did not finish within 30 minutes"
+                  exit 1
+
+            - name: Deploy to Cloud Run
+              run: |
+                  gcloud run deploy "$APP_NAME" --project "$PROJECT_ID" --image "gcr.io/$PROJECT_ID/$APP_NAME" --region "$REGION" --allow-unauthenticated
