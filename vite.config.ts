@@ -7,7 +7,10 @@ import basicSsl from '@vitejs/plugin-basic-ssl';
 // so that mode serves the app with a self-signed certificate on the local network.
 const phoneMode = process.env.PHONE === '1';
 
+// The GitHub Pages build sets BASE_PATH=/qr-check-in/, since Pages serves the app under the
+// repo name. Cloud Run and dev serve it from the root.
 export default defineConfig({
+    base: process.env.BASE_PATH ?? '/',
     envDir: '.secret',
     plugins: [react(), tailwindcss(), ...(phoneMode ? [basicSsl()] : [])],
 });

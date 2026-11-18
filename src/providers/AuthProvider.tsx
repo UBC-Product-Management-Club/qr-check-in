@@ -84,7 +84,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: window.location.origin,
+                // BASE_URL keeps the /qr-check-in/ path on GitHub Pages
+                redirectTo: window.location.origin + import.meta.env.BASE_URL,
                 // Always show the account picker so a wrong account is easy to switch.
                 queryParams: { prompt: 'select_account' },
             },
