@@ -4,3 +4,4 @@
 .gitignore
 node_modules
 dist
+gha-creds-*.json
